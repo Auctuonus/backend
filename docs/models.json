@@ -1,0 +1,52 @@
+{
+    "users": {
+        "id": "uuid",
+        "telegramId": "unique int",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+    },
+    "wallets": {
+        "id": "uuid",
+        "userId": "uuid",
+        "balance": "integer",  # total balance (with locked balance)
+        "lockedBalance": "integer"
+    },
+    "transactions": {
+        "id": "uuid",
+        "fromWalletId": "uuid",
+        "toWalletId": "uuid",
+        "amount": "integer"
+    },
+    "bids": {
+        "id": "uuid",
+        "userId": "uuid",
+        "auctionId": "uuid",
+        "amount": "integer",
+        "status": "enum: [active, won, lost]"
+    },
+    "items": {
+        "id": "${collectionName}_${num}",
+        "num": "integer",
+        "collectionName": "string",
+        "value": "string",
+        "ownerId": "uuid"
+    },
+    "auctions": {
+        "id": "uuid",
+        "status": "enum: [active, ended, cancelled]",
+        "sellerId": "uuid",
+        "sellerWalletId": "uuid",
+        "settings": {
+            "antisniping": "boolean",
+            "minBid": "integer",
+            "minBidDifference": "integer"
+        },
+        "rounds": [
+            {
+                "startTime": "timestamp",
+                "endTime": "timestamp",
+                "itemIds": ["uuid"]
+            }
+        ]
+    }
+}

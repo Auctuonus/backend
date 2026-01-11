@@ -1,5 +1,37 @@
-Все запросы содержат хедер
+Все запросы (кроме Auth) содержат хедер
+- Authorization: "строка из accessToken"
+
+# Auth
+
+## POST /auth/tg
+Request Body -
+
+Header:
 - Authorization: `tma ${initDataRaw}`
+
+Success Response Body:
+```json
+{
+    "accessToken": "string",
+    "refreshToken": "string"
+}
+```
+
+## POST /auth/refresh
+Request Body:
+```json
+{
+    "refreshToken": "string"
+}
+```
+
+Success Response Body:
+```json
+{
+    "accessToken": "string",
+    "refreshToken": "string"
+}
+```
 
 # Users
 
@@ -107,6 +139,27 @@ Response Body:
 ```
 
 # Bids
+
+## POST /bids/set_bid
+Request Body:
+```json
+{
+    "auctionId": "uuid",
+    "amount": "integer"
+}
+```
+
+Response Body:
+```json
+{
+    "status": "enum: ok, not_enough, error",
+    "data": {
+        "amount": "integer",
+        "newEndDate": "timestamp"
+    }
+}
+```
+
 ## POST /bids/get_my
 
 Request Body -
@@ -120,7 +173,9 @@ Response Body:
             "userId": "uuid",
             "auctionId": "uuid",
             "amount": "integer",
-            "status": "enum: [active, won, lost]"
+            "status": "enum: [active, won, lost]",
+            "createdAt": "timestamp",
+            "updatedAt": "timestamp"
         },
     ]
 }
@@ -139,6 +194,8 @@ Response Body:
         "auctionId": "uuid",
         "amount": "integer",
         "status": "enum: [active, won, lost]"
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
     },
     "top_bids": [
         {
@@ -146,7 +203,9 @@ Response Body:
             "userId": "uuid",
             "auctionId": "uuid",
             "amount": "integer",
-            "status": "enum: [active, won, lost]"
+            "status": "enum: [active, won, lost]",
+            "createdAt": "timestamp",
+            "updatedAt": "timestamp"
         },
     ]
 }

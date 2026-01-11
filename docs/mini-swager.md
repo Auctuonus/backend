@@ -60,7 +60,7 @@ Response Body:
 # Auctions
 
 ## POST /auctions/get_list
-Request Body 
+Request Body
 ```json
 {
     "filters": {
@@ -85,6 +85,7 @@ Response Body:
     },
     "auctions": [{
         "id": "uuid",
+        "name": "string",
         "status": "enum: [active, ended, cancelled]",
         "sellerId": "uuid",
         "sellerWalletId": "uuid",
@@ -108,6 +109,7 @@ Response Body:
 {
     "auction": {
         "id": "uuid",
+        "name": "string",
         "status": "enum: [active, ended, cancelled]",
         "sellerId": "uuid",
         "sellerWalletId": "uuid",
@@ -193,7 +195,7 @@ Response Body:
         "userId": "uuid",
         "auctionId": "uuid",
         "amount": "integer",
-        "status": "enum: [active, won, lost]"
+        "status": "enum: [active, won, lost]",
         "createdAt": "timestamp",
         "updatedAt": "timestamp"
     },

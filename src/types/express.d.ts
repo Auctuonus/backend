@@ -4,6 +4,10 @@ declare global {
   namespace Express {
     interface Request {
       initData?: InitData;
+      user?: {
+        userId: string;
+        telegramId: number;
+      };
     }
   }
 }

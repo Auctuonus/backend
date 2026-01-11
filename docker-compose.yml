@@ -63,6 +63,24 @@ services:
       - ./src:/app/src
       - ./node_modules:/app/node_modules
 
+  scripts-runner:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    container_name: auctionus-scripts
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017/auctionus
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - auctionus-network
+    profiles:
+      - scripts
+    volumes:
+      - ./scripts:/app/scripts
+      - ./src:/app/src
+
 volumes:
   mongodb_data:
     driver: local

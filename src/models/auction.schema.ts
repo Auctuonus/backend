@@ -10,13 +10,13 @@ export enum AuctionStatus {
 @Schema({ _id: false })
 export class AuctionSettings {
   @Prop({ required: true })
-  antisniping: boolean;
+  antisniping?: number; // in seconds
 
-  @Prop({ required: true })
-  minBid: number;
+  @Prop({ required: false })
+  minBid?: number;
 
-  @Prop({ required: true })
-  minBidDifference: number;
+  @Prop({ required: false })
+  minBidDifference?: number;
 }
 
 @Schema({ _id: false })
@@ -35,6 +35,9 @@ export type AuctionDocument = HydratedDocument<Auction>;
 
 @Schema({ timestamps: true })
 export class Auction {
+  @Prop({ required: true })
+  name: string;
+
   @Prop({
     required: true,
     enum: Object.values(AuctionStatus),
@@ -54,8 +57,8 @@ export class Auction {
   @Prop({ type: [AuctionRound], required: true })
   rounds: AuctionRound[];
 
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const AuctionSchema = SchemaFactory.createForClass(Auction);

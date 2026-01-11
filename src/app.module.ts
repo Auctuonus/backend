@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AppController } from './controllers/app.controller';
-import { AuthController } from './controllers/auth.controller';
-import { AppService } from './services/app.service';
 import { ModelsModule } from './models/models.module';
 import { RedisModule } from './redis/redis.module';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './users/user.module';
+import { AuctionModule } from './auctions/auction.module';
+import { BidModule } from './bids/bid.module';
 import configuration from './config';
 
 @Module({
@@ -12,8 +13,10 @@ import configuration from './config';
     MongooseModule.forRoot(configuration().mongodbUrl),
     RedisModule,
     ModelsModule,
+    AuthModule,
+    UserModule,
+    AuctionModule,
+    BidModule,
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService],
 })
 export class AppModule {}

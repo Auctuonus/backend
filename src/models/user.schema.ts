@@ -8,9 +8,12 @@ export class User {
   @Prop({ required: true, unique: true })
   telegramId: number;
 
+  @Prop()
+  hashedPassword?: string;
+
   // These will be added automatically by mongoose timestamps
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

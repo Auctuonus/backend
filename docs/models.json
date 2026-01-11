@@ -37,7 +37,7 @@
         "sellerId": "uuid",
         "sellerWalletId": "uuid",
         "settings": {
-            "antisniping": "boolean",
+            "antisniping": "integer",
             "minBid": "integer",
             "minBidDifference": "integer"
         },

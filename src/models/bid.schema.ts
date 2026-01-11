@@ -27,8 +27,8 @@ export class Bid {
   })
   status: BidStatus;
 
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const BidSchema = SchemaFactory.createForClass(Bid);

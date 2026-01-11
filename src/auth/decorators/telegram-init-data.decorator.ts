@@ -18,6 +18,6 @@ import type { InitData } from '@tma.js/init-data-node';
 export const TelegramInitData = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): InitData => {
     const request = ctx.switchToHttp().getRequest<Request>();
-    return request.initData as InitData;
+    return request.initData;
   },
 );

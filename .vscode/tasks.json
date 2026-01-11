@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "format",
+			"problemMatcher": [],
+			"label": "npm: format",
+			"detail": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\""
+		},
+		{
+			"type": "npm",
+			"script": "build",
+			"problemMatcher": "$tsc",
+			"label": "npm: build",
+			"detail": "nest build"
+		},
+		{
+			"label": "Create Auction (Script)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-auction.ts",
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "dedicated",
+				"showReuseMessage": false,
+				"clear": false
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		}
+	]
+}

@@ -51,6 +51,7 @@ Response Body:
         "userId": "uuid",
         "balance": "integer",
         "lockedBalance": "integer",
+        "freeBalance": "integer",
         "createdAt": "timestamp",
         "updatedAt": "timestamp"
     }
@@ -90,7 +91,7 @@ Response Body:
         "sellerId": "uuid",
         "sellerWalletId": "uuid",
         "settings": {
-            "antisniping": "boolean",
+            "antisniping": "integer",
             "minBid": "integer",
             "minBidDifference": "integer"
         },
@@ -114,7 +115,7 @@ Response Body:
         "sellerId": "uuid",
         "sellerWalletId": "uuid",
         "settings": {
-            "antisniping": "boolean",
+            "antisniping": "integer",
             "minBid": "integer",
             "minBidDifference": "integer"
         },

@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
+# Install build deps for native modules (e.g., bcrypt)
+RUN apk add --no-cache python3 make g++
+
 # Install dependencies
 RUN npm ci
 

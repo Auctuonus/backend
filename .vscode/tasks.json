@@ -32,6 +32,98 @@
 				"kind": "build",
 				"isDefault": false
 			}
+		},
+		{
+			"label": "Docker: Start DB (Mongo + Redis)",
+			"type": "shell",
+			"command": "docker-compose up -d mongodb redis",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Stop DB (Mongo + Redis)",
+			"type": "shell",
+			"command": "docker-compose stop mongodb redis",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Build scripts image",
+			"type": "shell",
+			"command": "docker-compose --profile scripts build scripts-runner",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Create user + wallet (interactive)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-user.ts",
+			"dependsOn": [
+				"Docker: Start DB (Mongo + Redis)",
+				"Scripts: Build scripts image"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"focus": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Create auction + items (interactive)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-auction-interactive.ts",
+			"dependsOn": [
+				"Docker: Start DB (Mongo + Redis)",
+				"Scripts: Build scripts image"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"focus": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Create default auction (non-interactive)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-auction.ts",
+			"dependsOn": [
+				"Docker: Start DB (Mongo + Redis)",
+				"Scripts: Build scripts image"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
 		}
 	]
 }

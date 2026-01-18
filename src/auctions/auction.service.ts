@@ -58,6 +58,7 @@ export class AuctionService {
         .limit(pagination.pageSize)
         .lean()
         .exec(),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       this.auctionModel.countDocuments(query).exec(),
     ]);
 
@@ -95,25 +96,32 @@ export class AuctionService {
   ): Promise<AuctionRoundResponse[]> {
     const populatedRounds: AuctionRoundResponse[] = [];
 
-    for (const round of rounds) {
-      const items = await this.itemModel
-        .find({ _id: { $in: round.itemIds } })
-        .lean()
-        .exec();
+    const itemIds = rounds.flatMap((round) => round.itemIds);
+    const items = await this.itemModel
+      .find({ _id: { $in: itemIds } })
+      .lean()
+      .exec();
+    const itemsMap = new Map(items.map((item) => [item._id, item]));
 
-      const mappedItems: AuctionItemResponse[] = items.map((item) => ({
-        id: `${item.collectionName}_${item.num}`,
-        num: item.num,
-        collectionName: item.collectionName,
-        value: item.value,
-        ownerId: item.ownerId.toString(),
-      }));
+    for (const round of rounds) {
+      const mappedItems: AuctionItemResponse[] = round.itemIds.map((itemId) => {
+        const item = itemsMap.get(itemId);
+        if (!item) return null;
+
+        return {
+          id: `${item.collectionName}_${item.num}`,
+          num: item.num,
+          collectionName: item.collectionName,
+          value: item.value,
+          ownerId: item.ownerId.toString(),
+        };
+      });
 
       populatedRounds.push({
         startTime: round.startTime,
         endTime: round.endTime,
         itemIds: round.itemIds.map((id) => id.toString()),
-        items: mappedItems,
+        items: mappedItems.filter((item) => item !== null),
       });
     }
 

@@ -221,10 +221,11 @@ export class BidPlacementService {
       throw new NotFoundException('Auction not found');
     }
 
-    if (auction.status !== AuctionStatus.ACTIVE) {
-      throw new BadRequestException('Auction is ended');
-    }
-    if (auction.rounds.every((round) => round.endTime < now)) {
+    if (
+      auction.status !== AuctionStatus.ACTIVE ||
+      auction.rounds.every((round) => round.endTime < now) ||
+      auction.rounds.every((round) => round.status !== AuctionStatus.ACTIVE)
+    ) {
       throw new BadRequestException('Auction is ended');
     }
 

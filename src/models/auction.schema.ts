@@ -27,6 +27,13 @@ export class AuctionRound {
   @Prop({ required: true })
   endTime: Date;
 
+  @Prop({
+    required: true,
+    enum: Object.values(AuctionStatus),
+    default: AuctionStatus.ACTIVE,
+  })
+  status: AuctionStatus;
+
   @Prop({ type: [Types.ObjectId], ref: 'Item', required: true })
   itemIds: Types.ObjectId[];
 }

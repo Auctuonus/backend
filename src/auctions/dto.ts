@@ -5,6 +5,9 @@ import {
   ValidateNested,
   IsInt,
   Min,
+  IsUUID,
+  IsDate,
+  IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AuctionStatus } from '../models/auction.schema';
@@ -38,4 +41,15 @@ export class GetAuctionListDto {
   @ValidateNested()
   @Type(() => PaginationDto)
   pagination: PaginationDto;
+}
+
+export class JobMessage {
+  @IsUUID()
+  id: string;
+
+  @IsMongoId()
+  auctionId: string;
+
+  @IsDate()
+  publishedAt: Date;
 }

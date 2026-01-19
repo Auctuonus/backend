@@ -4,7 +4,6 @@ import { Auction, AuctionSchema } from '../models/auction.schema';
 import { Item, ItemSchema } from '../models/item.schema';
 import { Bid, BidSchema } from '../models/bid.schema';
 import { AuctionService } from './auction.service';
-import { AuctionController } from './auction.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -16,7 +15,6 @@ import { AuthModule } from '../auth/auth.module';
     ]),
     AuthModule,
   ],
-  controllers: [AuctionController],
   providers: [AuctionService],
   exports: [AuctionService],
 })

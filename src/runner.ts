@@ -1,10 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { RunnerModule } from './app.module';
 import injectSwagger from './utils/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(RunnerModule);
 
   // Enable validation
   app.useGlobalPipes(
@@ -15,11 +15,8 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS
-  app.enableCors();
-
   injectSwagger(app);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(3001);
 }
 void bootstrap();

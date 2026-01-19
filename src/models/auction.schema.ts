@@ -4,7 +4,6 @@ import { HydratedDocument, Types } from 'mongoose';
 export enum AuctionStatus {
   ACTIVE = 'active',
   ENDED = 'ended',
-  PROCESSED = 'processed',
   CANCELLED = 'cancelled',
 }
 

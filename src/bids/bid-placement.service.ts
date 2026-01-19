@@ -41,9 +41,13 @@ export class BidPlacementService {
     session.startTransaction();
 
     try {
-      return await this._placeBid(placeBidDto, session);
+      const result = await this._placeBid(placeBidDto, session);
+      await session.commitTransaction();
+      return result;
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -120,6 +124,7 @@ export class BidPlacementService {
           type: TransactionType.INCREASE_BID,
           relatedEntityId: auction._id,
           relatedEntityType: RelatedEntityType.AUCTION,
+          description: 'Bid increase',
         },
       ],
       { session },
@@ -165,6 +170,7 @@ export class BidPlacementService {
           type: TransactionType.BID,
           relatedEntityId: auction._id,
           relatedEntityType: RelatedEntityType.AUCTION,
+          description: 'Bid placement',
         },
       ],
       { session },
@@ -193,7 +199,7 @@ export class BidPlacementService {
     }
 
     const newEndDate = auction.rounds.find(
-      (round) => round.endTime < now,
+      (round) => round.endTime > now,
     )?.endTime;
     if (!newEndDate) {
       throw new BadRequestException('Auction is ended');

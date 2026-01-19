@@ -12,6 +12,8 @@ import { UserController } from './users/user.controller';
 import { AuctionController } from './auctions/auction.controller';
 import { BidController } from './bids/bid.controller';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
+import { AuctionProcessingService } from './auctions/auction.consumer';
+import { HealthcheckController } from './utils/healthcheck.controller';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
     UserController,
     AuctionController,
     BidController,
+    HealthcheckController,
   ],
 })
 export class AppModule {}
@@ -43,5 +46,8 @@ export class AppModule {}
     AuctionModule,
     BidModule,
   ],
+  controllers: [HealthcheckController],
+  providers: [AuctionProcessingService],
+  exports: [AuctionProcessingService],
 })
 export class RunnerModule {}

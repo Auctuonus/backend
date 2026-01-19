@@ -4,5 +4,6 @@
   "typescript.enablePromptUseWorkspaceTs": true,
   "cSpell.words": [
     "Antisniping"
-  ]
+  ],
+  "jest.jestCommandLine": "node ./node_modules/.bin/jest -c ./test/jest-e2e.json --watch"
 }

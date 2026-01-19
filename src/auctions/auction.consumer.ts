@@ -22,8 +22,8 @@ import {
 import { ClientSession, Connection, Model } from 'mongoose';
 
 @Injectable()
-export class ConsumerService {
-  private readonly logger = new Logger(ConsumerService.name);
+export class AuctionProcessingService {
+  private readonly logger = new Logger(AuctionProcessingService.name);
   constructor(
     @InjectConnection() private connection: Connection,
     @InjectModel(Auction.name) private auctionModel: Model<AuctionDocument>,
@@ -83,9 +83,12 @@ export class ConsumerService {
     }
     for (const round of auction.rounds) {
       if (round.status !== AuctionStatus.ACTIVE) continue;
-      if (round.endTime < now) break;
+      if (round.endTime >= now) continue; // Skip rounds that haven't ended yet
       await this._processRound(auction, round, session);
     }
+
+    await session.commitTransaction();
+    return null;
   }
 
   private async _processRound(
@@ -109,7 +112,10 @@ export class ConsumerService {
       { session },
     );
 
-    for (let i = 0; i < items.length; i++) {
+    // Limit to the number of winning bids (might be fewer than items if not enough bids)
+    const winningCount = Math.min(items.length, topBids.length);
+
+    for (let i = 0; i < winningCount; i++) {
       const item = items[i];
       const bid = topBids[i];
 
@@ -136,6 +142,7 @@ export class ConsumerService {
             type: TransactionType.TRANSFER,
             relatedEntityId: auction._id,
             relatedEntityType: RelatedEntityType.AUCTION,
+            description: 'Auction win transfer',
           },
         ],
         { session },
@@ -153,8 +160,9 @@ export class ConsumerService {
     round.status = AuctionStatus.ENDED;
     await auction.save({ session });
 
-    // End
-    if (round !== auction.rounds[length - 1]) {
+    // End auction if this is the last round
+    const isLastRound = round === auction.rounds[auction.rounds.length - 1];
+    if (!isLastRound) {
       return;
     }
 

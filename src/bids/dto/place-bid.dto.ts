@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, IsInt, Min, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, IsMongoId } from 'class-validator';
 
 export class PlaceBidDto {
-  @IsUUID()
+  @IsMongoId()
   @IsNotEmpty()
   auctionId: string;
 
@@ -12,11 +12,11 @@ export class PlaceBidDto {
 
 export class ExtendBidDto {
   @IsString()
-  @IsUUID()
+  @IsMongoId()
   userId: string;
 
   @IsString()
-  @IsUUID()
+  @IsMongoId()
   auctionId: string;
 
   @IsInt()

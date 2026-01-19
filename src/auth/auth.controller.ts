@@ -4,7 +4,9 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiProperty,
 } from '@nestjs/swagger';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { TelegramAuthGuard, TelegramInitData } from '../auth';
 import { AuthService } from '../auth/auth.service';
 import type { InitData } from '@tma.js/init-data-node';
@@ -12,6 +14,12 @@ import type { TokenPair } from '../auth/auth.service';
 import { LoginPasswordDto } from './dto/login-password.dto';
 
 class RefreshTokenDto {
+  @ApiProperty({
+    description: 'Refresh token',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
+  @IsString()
+  @IsNotEmpty()
   refreshToken: string;
 }
 

@@ -101,11 +101,12 @@ export class AuctionService {
       .find({ _id: { $in: itemIds } })
       .lean()
       .exec();
-    const itemsMap = new Map(items.map((item) => [item._id, item]));
+    // Use string IDs as map keys for proper equality comparison
+    const itemsMap = new Map(items.map((item) => [item._id.toString(), item]));
 
     for (const round of rounds) {
       const mappedItems: AuctionItemResponse[] = round.itemIds.map((itemId) => {
-        const item = itemsMap.get(itemId);
+        const item = itemsMap.get(itemId.toString());
         if (!item) return null;
 
         return {

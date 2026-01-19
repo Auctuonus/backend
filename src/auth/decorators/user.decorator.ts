@@ -7,8 +7,14 @@ export interface UserPayload {
 }
 
 export const User = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): UserPayload => {
+  (data: string | undefined, ctx: ExecutionContext): UserPayload | string => {
     const request = ctx.switchToHttp().getRequest<Request>();
-    return request.user;
+    const user = request.user as UserPayload;
+
+    if (data === 'id') {
+      return user.userId;
+    }
+
+    return user;
   },
 );

@@ -7,6 +7,7 @@ import {
   Min,
   IsUUID,
   IsDate,
+  IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AuctionStatus } from '../models/auction.schema';
@@ -46,7 +47,7 @@ export class JobMessage {
   @IsUUID()
   id: string;
 
-  @IsUUID()
+  @IsMongoId()
   auctionId: string;
 
   @IsDate()

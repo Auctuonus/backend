@@ -13,29 +13,6 @@ import configuration from '../../config';
 export class TelegramAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    // Fake init data for development/testing
-    request.initData = {
-      auth_date: new Date(),
-      hash: 'fake_hash_for_development_' + Date.now(),
-      signature: 'fake_signature_for_development',
-      user: {
-        id: 336619540,
-        first_name: 'John',
-        last_name: 'Doe',
-        username: 'johndoe',
-        language_code: 'en',
-        is_premium: false,
-        allows_write_to_pm: true,
-      },
-      query_id: 'fake_query_id_' + Date.now(),
-      chat_type: 'sender',
-      start_param: 'test',
-    } as InitData;
-    return true;
-  }
-
-  _canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || typeof authHeader !== 'string') {

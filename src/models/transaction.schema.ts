@@ -51,7 +51,5 @@ export class Transaction {
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 
-// Create compound indexes for efficient querying
-TransactionSchema.index({ fromWalletId: 1, type: 1 });
-TransactionSchema.index({ toWalletId: 1, type: 1 });
+// Index for querying transactions by related entity (e.g., auction)
 TransactionSchema.index({ relatedEntityId: 1, relatedEntityType: 1 });

@@ -85,3 +85,9 @@ export class Auction {
 }
 
 export const AuctionSchema = SchemaFactory.createForClass(Auction);
+
+// Index for listing auctions by status
+AuctionSchema.index({ status: 1 });
+
+// Index for finding seller's auctions
+AuctionSchema.index({ sellerId: 1, status: 1 });

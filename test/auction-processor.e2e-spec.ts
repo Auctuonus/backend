@@ -94,7 +94,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -142,7 +142,7 @@ describe('AuctionProcessingService (e2e)', () => {
       }
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -165,7 +165,7 @@ describe('AuctionProcessingService (e2e)', () => {
 
     it('should return Nack for non-existent auction', async () => {
       const fakeAuctionId = '507f1f77bcf86cd799439011';
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(fakeAuctionId),
       );
 
@@ -180,7 +180,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
       await dbHelpers.updateAuctionStatus(auction._id, AuctionStatus.ENDED);
 
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -195,7 +195,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
       await dbHelpers.updateAuctionStatus(auction._id, AuctionStatus.CANCELLED);
 
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -235,7 +235,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -280,7 +280,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -301,7 +301,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction without any bids
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -343,7 +343,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -405,7 +405,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -436,10 +436,10 @@ describe('AuctionProcessingService (e2e)', () => {
 
       // Process same auction twice concurrently
       const [result1, result2] = await Promise.all([
-        auctionProcessor.processAuction(
+        auctionProcessor.processAuctionSync(
           createJobMessage(auction._id.toString()),
         ),
-        auctionProcessor.processAuction(
+        auctionProcessor.processAuctionSync(
           createJobMessage(auction._id.toString()),
         ),
       ]);
@@ -480,7 +480,7 @@ describe('AuctionProcessingService (e2e)', () => {
       }
 
       // Process auction
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -525,7 +525,7 @@ describe('AuctionProcessingService (e2e)', () => {
       });
 
       // Process
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -562,7 +562,7 @@ describe('AuctionProcessingService (e2e)', () => {
       }
 
       // Process
-      const result = await auctionProcessor.processAuction(
+      const result = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 

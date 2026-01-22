@@ -166,7 +166,7 @@ describe('Full Auction Flow Integration (e2e)', () => {
       );
 
       // Step 10: Process auction (simulates RabbitMQ message)
-      const processResult = await auctionProcessor.processAuction(
+      const processResult = await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -278,7 +278,7 @@ describe('Full Auction Flow Integration (e2e)', () => {
         0,
         new Date(Date.now() - 1000),
       );
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 
@@ -817,7 +817,7 @@ describe('Full Auction Flow Integration (e2e)', () => {
       );
 
       // Process once
-      await auctionProcessor.processAuction(
+      await auctionProcessor.processAuctionSync(
         createJobMessage(auction._id.toString()),
       );
 

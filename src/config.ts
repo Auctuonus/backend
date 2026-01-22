@@ -30,6 +30,12 @@ const configuration = () => ({
         routingKey: 'jobs',
         exchange: 'delayed.ex',
       },
+      {
+        name: 'auction.processing.q',
+        options: { durable: true },
+        routingKey: 'auction.processing',
+        exchange: 'delayed.ex',
+      },
     ],
     enableControllerDiscovery: true,
   } as RabbitMQConfig,

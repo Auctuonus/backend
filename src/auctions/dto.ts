@@ -8,6 +8,7 @@ import {
   IsUUID,
   IsDate,
   IsMongoId,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AuctionStatus } from '../models/auction.schema';
@@ -49,6 +50,23 @@ export class JobMessage {
 
   @IsMongoId()
   auctionId: string;
+
+  @IsDate()
+  publishedAt: Date;
+}
+
+export class ProcessingJobMessage {
+  @IsUUID()
+  id: string;
+
+  @IsMongoId()
+  auctionId: string;
+
+  @IsNumber()
+  roundIndex: number;
+
+  @IsString()
+  stage: string;
 
   @IsDate()
   publishedAt: Date;

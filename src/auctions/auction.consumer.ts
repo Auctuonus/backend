@@ -7,6 +7,7 @@ import {
   AuctionDocument,
   AuctionRound,
   AuctionStatus,
+  RoundProcessingStatus,
   Bid,
   BidDocument,
   BidStatus,
@@ -20,6 +21,7 @@ import {
   WalletDocument,
 } from 'src/models';
 import { ClientSession, Connection, Model } from 'mongoose';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class AuctionProcessingService {
@@ -32,6 +34,7 @@ export class AuctionProcessingService {
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
     @InjectModel(Transaction.name)
     private transactionModel: Model<TransactionDocument>,
+    private distributedLockService: DistributedLockService,
   ) {}
 
   @RabbitSubscribe({
@@ -41,10 +44,39 @@ export class AuctionProcessingService {
     queueOptions: { durable: true },
   })
   async processAuction(msg: JobMessage) {
+    const auctionLockKey = `auction:${msg.auctionId}`;
+    const startTime = Date.now();
+    const publishedAt = new Date(msg.publishedAt).getTime();
+    const queueDelayMs = startTime - publishedAt;
+
+    this.logger.log(
+      `Processing auction ${msg.auctionId}, queue delay: ${queueDelayMs}ms, message id: ${msg.id}`,
+    );
+
+    if (queueDelayMs > 5000) {
+      this.logger.warn(
+        `High queue delay detected for auction ${msg.auctionId}: ${queueDelayMs}ms`,
+      );
+    }
+
     try {
-      return await this._processAuction(msg);
+      const result = await this.distributedLockService.withLock(
+        auctionLockKey,
+        () => this._processAuction(msg),
+      );
+
+      const processingTimeMs = Date.now() - startTime;
+      this.logger.log(
+        `Auction ${msg.auctionId} processed in ${processingTimeMs}ms`,
+      );
+
+      return result;
     } catch (error) {
-      this.logger.error(error);
+      const processingTimeMs = Date.now() - startTime;
+      this.logger.error(
+        `Failed to process auction ${msg.auctionId} after ${processingTimeMs}ms:`,
+        error,
+      );
       return new Nack(true);
     }
   }
@@ -96,79 +128,185 @@ export class AuctionProcessingService {
     round: AuctionRound,
     session: ClientSession,
   ) {
-    const { items, topBids } = await this._getEntities(auction, round, session);
+    const roundIndex = auction.rounds.indexOf(round);
+    this.logger.log(`Processing round ${roundIndex} for auction ${auction._id}`);
 
-    for (const bid of topBids) {
-      bid.status = BidStatus.WON;
+    // Step 1: Mark winners
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.PROCESSING_WINNERS,
+      session,
+    );
+    const { items, topBids } = await this._markWinners(auction, round, session);
+
+    // Step 2: Transfer items and funds
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.PROCESSING_TRANSFERS,
+      session,
+    );
+    await this._processWinnerTransfers(auction, items, topBids, session);
+
+    // Step 3: Process losers (only for last round)
+    const isLastRound = roundIndex === auction.rounds.length - 1;
+    if (isLastRound) {
+      await this._updateRoundProcessingStatus(
+        auction,
+        roundIndex,
+        RoundProcessingStatus.PROCESSING_LOSERS,
+        session,
+      );
+      await this._processLosers(auction, session);
     }
-    await this.bidModel.updateMany(
-      { _id: { $in: topBids.map((bid) => bid._id) } },
-      {
-        $set: {
-          status: BidStatus.WON,
-          updatedAt: new Date(),
-        },
-      },
+
+    // Step 4: Mark round as completed
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.COMPLETED,
+      session,
+    );
+    round.status = AuctionStatus.ENDED;
+
+    if (isLastRound) {
+      auction.status = AuctionStatus.ENDED;
+    }
+    await auction.save({ session });
+
+    this.logger.log(`Round ${roundIndex} for auction ${auction._id} completed`);
+  }
+
+  private async _updateRoundProcessingStatus(
+    auction: AuctionDocument,
+    roundIndex: number,
+    status: RoundProcessingStatus,
+    session: ClientSession,
+  ): Promise<void> {
+    await this.auctionModel.updateOne(
+      { _id: auction._id },
+      { $set: { [`rounds.${roundIndex}.processingStatus`]: status } },
       { session },
     );
+    auction.rounds[roundIndex].processingStatus = status;
+    this.logger.debug(
+      `Auction ${auction._id} round ${roundIndex} status: ${status}`,
+    );
+  }
 
-    // Limit to the number of winning bids (might be fewer than items if not enough bids)
+  private async _markWinners(
+    auction: AuctionDocument,
+    round: AuctionRound,
+    session: ClientSession,
+  ): Promise<{ items: ItemDocument[]; topBids: BidDocument[] }> {
+    const { items, topBids } = await this._getEntities(auction, round, session);
+
+    if (topBids.length > 0) {
+      await this.bidModel.updateMany(
+        { _id: { $in: topBids.map((bid) => bid._id) } },
+        {
+          $set: {
+            status: BidStatus.WON,
+            updatedAt: new Date(),
+          },
+        },
+        { session },
+      );
+
+      for (const bid of topBids) {
+        bid.status = BidStatus.WON;
+      }
+    }
+
+    return { items, topBids };
+  }
+
+  private async _processWinnerTransfers(
+    auction: AuctionDocument,
+    items: ItemDocument[],
+    topBids: BidDocument[],
+    session: ClientSession,
+  ): Promise<void> {
     const winningCount = Math.min(items.length, topBids.length);
+    if (winningCount === 0) return;
+
+    const now = new Date();
+    let totalTransferAmount = 0;
+
+    // Prepare bulk operations
+    const itemBulkOps: any[] = [];
+    const walletBulkOps: any[] = [];
+    const transactionDocs: any[] = [];
 
     for (let i = 0; i < winningCount; i++) {
       const item = items[i];
       const bid = topBids[i];
 
-      item.ownerId = bid.userId;
-      item.updatedAt = new Date();
-      await item.save({ session });
-
-      await this.walletModel.updateOne(
-        { userId: item.ownerId },
-        {
-          $inc: {
-            balance: -bid.amount,
-            lockedBalance: -bid.amount,
-          },
+      // Transfer item ownership
+      itemBulkOps.push({
+        updateOne: {
+          filter: { _id: item._id },
+          update: { $set: { ownerId: bid.userId, updatedAt: now } },
         },
-        { session },
-      );
-      await this.transactionModel.create(
-        [
-          {
-            fromWalletId: bid.userId,
-            toWalletId: auction.sellerWalletId,
-            amount: bid.amount,
-            type: TransactionType.TRANSFER,
-            relatedEntityId: auction._id,
-            relatedEntityType: RelatedEntityType.AUCTION,
-            description: 'Auction win transfer',
-          },
-        ],
-        { session },
-      );
-    }
-    await this.walletModel.updateOne(
-      { userId: auction.sellerId },
-      {
-        $inc: {
-          balance: topBids.reduce((acc, bid) => acc + bid.amount, 0),
-        },
-      },
-      { session },
-    );
-    round.status = AuctionStatus.ENDED;
-    await auction.save({ session });
+      });
 
-    // End auction if this is the last round
-    const isLastRound = round === auction.rounds[auction.rounds.length - 1];
-    if (!isLastRound) {
-      return;
+      // Deduct from winner's wallet
+      walletBulkOps.push({
+        updateOne: {
+          filter: { userId: bid.userId },
+          update: { $inc: { balance: -bid.amount, lockedBalance: -bid.amount } },
+        },
+      });
+
+      // Prepare transaction record
+      transactionDocs.push({
+        fromWalletId: bid.userId,
+        toWalletId: auction.sellerWalletId,
+        amount: bid.amount,
+        type: TransactionType.TRANSFER,
+        relatedEntityId: auction._id,
+        relatedEntityType: RelatedEntityType.AUCTION,
+        description: 'Auction win transfer',
+      });
+
+      totalTransferAmount += bid.amount;
     }
 
-    auction.status = AuctionStatus.ENDED;
-    await auction.save({ session });
+    // Execute bulk operations
+    if (itemBulkOps.length > 0) {
+      await this.itemModel.bulkWrite(itemBulkOps, { session });
+    }
 
+    if (walletBulkOps.length > 0) {
+      // Add seller credit to wallet bulk ops
+      walletBulkOps.push({
+        updateOne: {
+          filter: { userId: auction.sellerId },
+          update: { $inc: { balance: totalTransferAmount } },
+        },
+      });
+      await this.walletModel.bulkWrite(walletBulkOps, { session });
+    }
+
+    if (transactionDocs.length > 0) {
+      await this.transactionModel.insertMany(transactionDocs, { session });
+    }
+  }
+
+  private async _processLosers(
+    auction: AuctionDocument,
+    session: ClientSession,
+  ): Promise<void> {
+    // Get losing bids before updating status
+    const losingBids = await this.bidModel
+      .find({ auctionId: auction._id, status: BidStatus.ACTIVE })
+      .session(session)
+      .exec();
+
+    if (losingBids.length === 0) return;
+
+    // Mark remaining active bids as lost
     await this.bidModel.updateMany(
       { auctionId: auction._id, status: BidStatus.ACTIVE },
       {
@@ -179,17 +317,20 @@ export class AuctionProcessingService {
       },
       { session },
     );
-    const bids = await this.bidModel
-      .find({ auctionId: auction._id, status: BidStatus.LOST })
-      .session(session)
-      .exec();
-    for (const bid of bids) {
-      await this.walletModel.updateOne(
-        { userId: bid.userId },
-        { $inc: { lockedBalance: -bid.amount } },
-        { session },
-      );
-    }
+
+    // Unlock funds for losers using bulkWrite
+    const walletBulkOps = losingBids.map((bid) => ({
+      updateOne: {
+        filter: { userId: bid.userId },
+        update: { $inc: { lockedBalance: -bid.amount } },
+      },
+    }));
+
+    await this.walletModel.bulkWrite(walletBulkOps, { session });
+
+    this.logger.log(
+      `Unlocked funds for ${losingBids.length} losing bids in auction ${auction._id}`,
+    );
   }
 
   private async _getEntities(

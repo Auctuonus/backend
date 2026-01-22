@@ -48,6 +48,6 @@ export class AppModule {}
   ],
   controllers: [HealthcheckController],
   providers: [AuctionProcessingService],
-  exports: [AuctionProcessingService],
+  exports: [AuctionProcessingService, RedisModule],
 })
 export class RunnerModule {}

@@ -2,12 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Inject,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, ClientSession, Connection } from 'mongoose';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
 import { Bid, BidDocument, BidStatus } from '../models/bid.schema';
 import {
   Auction,
@@ -23,9 +21,12 @@ import {
 } from '../models/transaction.schema';
 import { PlaceBidResult } from './interfaces/bid-response.interface';
 import { ExtendBidDto } from './dto/place-bid.dto';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class BidPlacementService {
+  private readonly logger = new Logger(BidPlacementService.name);
+
   constructor(
     @InjectModel(Bid.name) private bidModel: Model<BidDocument>,
     @InjectModel(Auction.name) private auctionModel: Model<AuctionDocument>,
@@ -33,10 +34,22 @@ export class BidPlacementService {
     @InjectModel(Transaction.name)
     private transactionModel: Model<TransactionDocument>,
     @InjectConnection() private connection: Connection,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private distributedLockService: DistributedLockService,
   ) {}
 
   async placeBid(placeBidDto: ExtendBidDto): Promise<PlaceBidResult> {
+    // Acquire distributed lock for auction to prevent race conditions
+    const auctionLockKey = `auction:${placeBidDto.auctionId}`;
+
+    return this.distributedLockService.withLock(
+      auctionLockKey,
+      () => this._placeBidWithTransaction(placeBidDto),
+    );
+  }
+
+  private async _placeBidWithTransaction(
+    placeBidDto: ExtendBidDto,
+  ): Promise<PlaceBidResult> {
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
@@ -54,7 +67,7 @@ export class BidPlacementService {
       ) {
         throw error;
       }
-      console.error('Error placing bid:', error);
+      this.logger.error('Error placing bid:', error);
       return { status: 'error' };
     } finally {
       await session.endSession();

@@ -19,3 +19,6 @@ export class Wallet {
 }
 
 export const WalletSchema = SchemaFactory.createForClass(Wallet);
+
+// Unique index - one wallet per user, frequently queried by userId
+WalletSchema.index({ userId: 1 }, { unique: true });

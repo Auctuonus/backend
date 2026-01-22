@@ -7,6 +7,16 @@ export enum AuctionStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum RoundProcessingStatus {
+  PENDING = 'pending',           // Раунд ещё не начался
+  ACTIVE = 'active',             // Раунд активен, принимаются ставки
+  PROCESSING_WINNERS = 'processing_winners',     // Определяем победителей
+  PROCESSING_TRANSFERS = 'processing_transfers', // Переводим средства
+  PROCESSING_LOSERS = 'processing_losers',       // Разблокируем средства проигравших
+  COMPLETED = 'completed',       // Обработка завершена
+  FAILED = 'failed',             // Ошибка обработки
+}
+
 @Schema({ _id: false })
 export class AuctionSettings {
   @Prop({ required: true })
@@ -33,6 +43,12 @@ export class AuctionRound {
     default: AuctionStatus.ACTIVE,
   })
   status: AuctionStatus;
+
+  @Prop({
+    required: false,
+    enum: Object.values(RoundProcessingStatus),
+  })
+  processingStatus?: RoundProcessingStatus;
 
   @Prop({ type: [Types.ObjectId], ref: 'Item', required: true })
   itemIds: Types.ObjectId[];
@@ -69,3 +85,9 @@ export class Auction {
 }
 
 export const AuctionSchema = SchemaFactory.createForClass(Auction);
+
+// Index for listing auctions by status
+AuctionSchema.index({ status: 1 });
+
+// Index for finding seller's auctions
+AuctionSchema.index({ sellerId: 1, status: 1 });

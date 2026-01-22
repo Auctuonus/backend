@@ -48,9 +48,7 @@ export class BidPlacementService {
         this.distributedLockService.withLock(
           userLockKey,
           () => this._placeBidWithTransaction(placeBidDto),
-          { ttlMs: 15000, maxRetries: 100 },
         ),
-      { ttlMs: 30000, maxRetries: 200 },
     );
   }
 

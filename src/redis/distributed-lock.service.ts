@@ -2,13 +2,6 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 
-export interface LockOptions {
-  ttlMs?: number;
-  retryDelayMs?: number;
-  maxRetries?: number;
-  retryJitterMs?: number;
-}
-
 export interface LockMetrics {
   acquired: number;
   released: number;
@@ -17,11 +10,6 @@ export interface LockMetrics {
   avgWaitTimeMs: number;
 }
 
-const DEFAULT_TTL_MS = 30000;
-const DEFAULT_RETRY_DELAY_MS = 50;
-const DEFAULT_MAX_RETRIES = 300;
-const DEFAULT_RETRY_JITTER_MS = 25;
-const MAX_BACKOFF_MS = 500;
 
 @Injectable()
 export class DistributedLockService {
@@ -51,61 +39,40 @@ export class DistributedLockService {
   }
 
   async acquireLock(
-    key: string,
-    options: LockOptions = {},
+    key: string
   ): Promise<string | null> {
-    const {
-      ttlMs = DEFAULT_TTL_MS,
-      retryDelayMs = DEFAULT_RETRY_DELAY_MS,
-      maxRetries = DEFAULT_MAX_RETRIES,
-      retryJitterMs = DEFAULT_RETRY_JITTER_MS,
-    } = options;
 
     const lockKey = `lock:${key}`;
     const lockToken = `${Date.now()}-${Math.random().toString(36).substring(2)}-${process.pid}`;
     const startTime = Date.now();
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const existingLock = await this.cacheManager.get<string>(lockKey);
-
-        if (!existingLock) {
-          await this.cacheManager.set(lockKey, lockToken, ttlMs);
-          const verifyLock = await this.cacheManager.get<string>(lockKey);
+    try {
+      const existingLock = await this.cacheManager.get<string>(lockKey);
+      if (!existingLock) {
+        await this.cacheManager.set(lockKey, lockToken);
+        const verifyLock = await this.cacheManager.get<string>(lockKey);
+        
+        if (verifyLock === lockToken) {
+          const waitTime = Date.now() - startTime;
+          this.metrics.acquired++;
+          this.metrics.totalWaitTimeMs += waitTime;
+          this.metrics.avgWaitTimeMs = this.metrics.totalWaitTimeMs / this.metrics.acquired;
           
-          if (verifyLock === lockToken) {
-            const waitTime = Date.now() - startTime;
-            this.metrics.acquired++;
-            this.metrics.totalWaitTimeMs += waitTime;
-            this.metrics.avgWaitTimeMs = this.metrics.totalWaitTimeMs / this.metrics.acquired;
-            
-            this.logger.debug(
-              `Lock acquired: ${lockKey} (attempt ${attempt + 1}, wait ${waitTime}ms)`,
-            );
-            return lockToken;
-          }
-        }
-
-        if (attempt < maxRetries) {
-          const backoff = Math.min(
-            retryDelayMs * Math.pow(1.5, Math.min(attempt, 10)),
-            MAX_BACKOFF_MS,
+          this.logger.debug(
+            `Lock acquired: ${lockKey} (wait ${waitTime}ms)`,
           );
-          const jitter = Math.random() * retryJitterMs;
-          await this.sleep(backoff + jitter);
-        }
-      } catch (error) {
-        this.logger.error(`Lock acquire error for ${lockKey}:`, error);
-        if (attempt < maxRetries) {
-          await this.sleep(retryDelayMs * 2);
+          return lockToken;
         }
       }
+
+    } catch (error) {
+      this.logger.error(`Lock acquire error for ${lockKey}:`, error);
     }
 
     const waitTime = Date.now() - startTime;
     this.metrics.failed++;
     this.logger.warn(
-      `Failed to acquire lock: ${lockKey} after ${maxRetries} retries (${waitTime}ms)`,
+      `Failed to acquire lock: ${lockKey} retries (${waitTime}ms)`,
     );
     return null;
   }
@@ -137,10 +104,9 @@ export class DistributedLockService {
 
   async withLock<T>(
     key: string,
-    fn: () => Promise<T>,
-    options: LockOptions = {},
+    fn: () => Promise<T>
   ): Promise<T> {
-    const token = await this.acquireLock(key, options);
+    const token = await this.acquireLock(key);
 
     if (!token) {
       throw new Error(`Failed to acquire lock for key: ${key}`);
@@ -153,14 +119,14 @@ export class DistributedLockService {
     }
   }
 
-  async extendLock(key: string, token: string, ttlMs: number): Promise<boolean> {
+  async extendLock(key: string, token: string): Promise<boolean> {
     const lockKey = `lock:${key}`;
 
     try {
       const currentToken = await this.cacheManager.get<string>(lockKey);
       if (currentToken === token) {
-        await this.cacheManager.set(lockKey, token, ttlMs);
-        this.logger.debug(`Lock extended: ${lockKey} for ${ttlMs}ms`);
+        await this.cacheManager.set(lockKey, token);
+        this.logger.debug(`Lock extended: ${lockKey}`);
         return true;
       }
       return false;
@@ -176,7 +142,4 @@ export class DistributedLockService {
     return !!token;
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 }

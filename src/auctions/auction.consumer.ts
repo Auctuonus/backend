@@ -63,7 +63,6 @@ export class AuctionProcessingService {
       const result = await this.distributedLockService.withLock(
         auctionLockKey,
         () => this._processAuction(msg),
-        { ttlMs: 60000, maxRetries: 10 }, // Longer TTL for processing, fewer retries
       );
 
       const processingTimeMs = Date.now() - startTime;

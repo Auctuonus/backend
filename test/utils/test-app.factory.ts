@@ -87,13 +87,9 @@ export async function createTestWebApp(): Promise<TestAppContext> {
       BidController,
       HealthcheckController,
     ],
-    providers: [
-      {
-        provide: DistributedLockService,
-        useClass: MockDistributedLockService,
-      },
-    ],
-  }).compile();
+  }).overrideProvider(DistributedLockService)
+    .useClass(MockDistributedLockService)
+    .compile();
 
   const app = moduleFixture.createNestApplication();
 

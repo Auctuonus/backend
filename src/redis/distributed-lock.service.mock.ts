@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { LockOptions, LockMetrics } from './distributed-lock.service';
+import { LockMetrics } from './distributed-lock.service';
 
 /**
  * Mock implementation of DistributedLockService for testing
- * Always acquires locks immediately without actual Redis operations
+ * Actually serializes access using in-memory locks to properly test concurrent scenarios
  */
 @Injectable()
 export class MockDistributedLockService {
+  private locks: Map<string, Promise<void>> = new Map();
   private metrics: LockMetrics = {
     acquired: 0,
     released: 0,
@@ -31,7 +32,6 @@ export class MockDistributedLockService {
 
   async acquireLock(
     key: string,
-    options: LockOptions = {},
   ): Promise<string | null> {
     this.metrics.acquired++;
     return `mock-token-${Date.now()}`;
@@ -45,21 +45,36 @@ export class MockDistributedLockService {
   async withLock<T>(
     key: string,
     fn: () => Promise<T>,
-    options: LockOptions = {},
   ): Promise<T> {
+    const lockKey = `lock:${key}`;
+    
+    // Wait for existing lock to be released
+    while (this.locks.has(lockKey)) {
+      await this.locks.get(lockKey);
+    }
+
+    // Create a new lock promise
+    let releaseLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    this.locks.set(lockKey, lockPromise);
+
     this.metrics.acquired++;
     try {
       return await fn();
     } finally {
       this.metrics.released++;
+      this.locks.delete(lockKey);
+      releaseLock!();
     }
   }
 
-  async extendLock(key: string, token: string, ttlMs: number): Promise<boolean> {
+  async extendLock(key: string, token: string): Promise<boolean> {
     return true;
   }
 
   async isLocked(key: string): Promise<boolean> {
-    return false;
+    return this.locks.has(`lock:${key}`);
   }
 }

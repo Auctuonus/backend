@@ -38,17 +38,12 @@ export class BidPlacementService {
   ) {}
 
   async placeBid(placeBidDto: ExtendBidDto): Promise<PlaceBidResult> {
-    // Acquire distributed lock for auction and user wallet to prevent race conditions
+    // Acquire distributed lock for auction to prevent race conditions
     const auctionLockKey = `auction:${placeBidDto.auctionId}`;
-    const userLockKey = `user:${placeBidDto.userId}:bid`;
 
     return this.distributedLockService.withLock(
       auctionLockKey,
-      () =>
-        this.distributedLockService.withLock(
-          userLockKey,
-          () => this._placeBidWithTransaction(placeBidDto),
-        ),
+      () => this._placeBidWithTransaction(placeBidDto),
     );
   }
 

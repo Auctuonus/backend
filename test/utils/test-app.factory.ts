@@ -23,6 +23,8 @@ import { BidController } from 'src/bids/bid.controller';
 import { HealthcheckController } from 'src/utils/healthcheck.controller';
 
 import { AuctionProcessingService } from 'src/auctions/auction.consumer';
+import { DistributedLockService } from 'src/redis/distributed-lock.service';
+import { MockDistributedLockService } from 'src/redis/distributed-lock.service.mock';
 
 import {
   User,
@@ -84,6 +86,12 @@ export async function createTestWebApp(): Promise<TestAppContext> {
       AuctionController,
       BidController,
       HealthcheckController,
+    ],
+    providers: [
+      {
+        provide: DistributedLockService,
+        useClass: MockDistributedLockService,
+      },
     ],
   }).compile();
 
@@ -148,7 +156,13 @@ export async function createTestRunnerApp(): Promise<TestRunnerContext> {
       UserModule,
     ],
     controllers: [HealthcheckController],
-    providers: [AuctionProcessingService],
+    providers: [
+      AuctionProcessingService,
+      {
+        provide: DistributedLockService,
+        useClass: MockDistributedLockService,
+      },
+    ],
   }).compile();
 
   const app = moduleFixture.createNestApplication();
@@ -223,7 +237,13 @@ export async function createFullTestApp(): Promise<TestRunnerContext> {
       BidController,
       HealthcheckController,
     ],
-    providers: [AuctionProcessingService],
+    providers: [
+      AuctionProcessingService,
+      {
+        provide: DistributedLockService,
+        useClass: MockDistributedLockService,
+      },
+    ],
   }).compile();
 
   const app = moduleFixture.createNestApplication();

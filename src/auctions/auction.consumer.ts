@@ -7,6 +7,7 @@ import {
   AuctionDocument,
   AuctionRound,
   AuctionStatus,
+  RoundProcessingStatus,
   Bid,
   BidDocument,
   BidStatus,
@@ -20,6 +21,7 @@ import {
   WalletDocument,
 } from 'src/models';
 import { ClientSession, Connection, Model } from 'mongoose';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class AuctionProcessingService {
@@ -32,6 +34,7 @@ export class AuctionProcessingService {
     @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
     @InjectModel(Transaction.name)
     private transactionModel: Model<TransactionDocument>,
+    private distributedLockService: DistributedLockService,
   ) {}
 
   @RabbitSubscribe({
@@ -41,10 +44,40 @@ export class AuctionProcessingService {
     queueOptions: { durable: true },
   })
   async processAuction(msg: JobMessage) {
+    const auctionLockKey = `auction:${msg.auctionId}`;
+    const startTime = Date.now();
+    const publishedAt = new Date(msg.publishedAt).getTime();
+    const queueDelayMs = startTime - publishedAt;
+
+    this.logger.log(
+      `Processing auction ${msg.auctionId}, queue delay: ${queueDelayMs}ms, message id: ${msg.id}`,
+    );
+
+    if (queueDelayMs > 5000) {
+      this.logger.warn(
+        `High queue delay detected for auction ${msg.auctionId}: ${queueDelayMs}ms`,
+      );
+    }
+
     try {
-      return await this._processAuction(msg);
+      const result = await this.distributedLockService.withLock(
+        auctionLockKey,
+        () => this._processAuction(msg),
+        { ttlMs: 60000, maxRetries: 10 }, // Longer TTL for processing, fewer retries
+      );
+
+      const processingTimeMs = Date.now() - startTime;
+      this.logger.log(
+        `Auction ${msg.auctionId} processed in ${processingTimeMs}ms`,
+      );
+
+      return result;
     } catch (error) {
-      this.logger.error(error);
+      const processingTimeMs = Date.now() - startTime;
+      this.logger.error(
+        `Failed to process auction ${msg.auctionId} after ${processingTimeMs}ms:`,
+        error,
+      );
       return new Nack(true);
     }
   }
@@ -96,35 +129,121 @@ export class AuctionProcessingService {
     round: AuctionRound,
     session: ClientSession,
   ) {
-    const { items, topBids } = await this._getEntities(auction, round, session);
+    const roundIndex = auction.rounds.indexOf(round);
+    this.logger.log(`Processing round ${roundIndex} for auction ${auction._id}`);
 
-    for (const bid of topBids) {
-      bid.status = BidStatus.WON;
+    // Step 1: Mark winners
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.PROCESSING_WINNERS,
+      session,
+    );
+    const { items, topBids } = await this._markWinners(auction, round, session);
+
+    // Step 2: Transfer items and funds
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.PROCESSING_TRANSFERS,
+      session,
+    );
+    await this._processWinnerTransfers(auction, items, topBids, session);
+
+    // Step 3: Process losers (only for last round)
+    const isLastRound = roundIndex === auction.rounds.length - 1;
+    if (isLastRound) {
+      await this._updateRoundProcessingStatus(
+        auction,
+        roundIndex,
+        RoundProcessingStatus.PROCESSING_LOSERS,
+        session,
+      );
+      await this._processLosers(auction, session);
     }
-    await this.bidModel.updateMany(
-      { _id: { $in: topBids.map((bid) => bid._id) } },
-      {
-        $set: {
-          status: BidStatus.WON,
-          updatedAt: new Date(),
-        },
-      },
+
+    // Step 4: Mark round as completed
+    await this._updateRoundProcessingStatus(
+      auction,
+      roundIndex,
+      RoundProcessingStatus.COMPLETED,
+      session,
+    );
+    round.status = AuctionStatus.ENDED;
+
+    if (isLastRound) {
+      auction.status = AuctionStatus.ENDED;
+    }
+    await auction.save({ session });
+
+    this.logger.log(`Round ${roundIndex} for auction ${auction._id} completed`);
+  }
+
+  private async _updateRoundProcessingStatus(
+    auction: AuctionDocument,
+    roundIndex: number,
+    status: RoundProcessingStatus,
+    session: ClientSession,
+  ): Promise<void> {
+    await this.auctionModel.updateOne(
+      { _id: auction._id },
+      { $set: { [`rounds.${roundIndex}.processingStatus`]: status } },
       { session },
     );
+    auction.rounds[roundIndex].processingStatus = status;
+    this.logger.debug(
+      `Auction ${auction._id} round ${roundIndex} status: ${status}`,
+    );
+  }
 
-    // Limit to the number of winning bids (might be fewer than items if not enough bids)
+  private async _markWinners(
+    auction: AuctionDocument,
+    round: AuctionRound,
+    session: ClientSession,
+  ): Promise<{ items: ItemDocument[]; topBids: BidDocument[] }> {
+    const { items, topBids } = await this._getEntities(auction, round, session);
+
+    if (topBids.length > 0) {
+      await this.bidModel.updateMany(
+        { _id: { $in: topBids.map((bid) => bid._id) } },
+        {
+          $set: {
+            status: BidStatus.WON,
+            updatedAt: new Date(),
+          },
+        },
+        { session },
+      );
+
+      for (const bid of topBids) {
+        bid.status = BidStatus.WON;
+      }
+    }
+
+    return { items, topBids };
+  }
+
+  private async _processWinnerTransfers(
+    auction: AuctionDocument,
+    items: ItemDocument[],
+    topBids: BidDocument[],
+    session: ClientSession,
+  ): Promise<void> {
     const winningCount = Math.min(items.length, topBids.length);
+    let totalTransferAmount = 0;
 
     for (let i = 0; i < winningCount; i++) {
       const item = items[i];
       const bid = topBids[i];
 
+      // Transfer item ownership
       item.ownerId = bid.userId;
       item.updatedAt = new Date();
       await item.save({ session });
 
+      // Deduct from winner's wallet
       await this.walletModel.updateOne(
-        { userId: item.ownerId },
+        { userId: bid.userId },
         {
           $inc: {
             balance: -bid.amount,
@@ -133,6 +252,8 @@ export class AuctionProcessingService {
         },
         { session },
       );
+
+      // Create transaction record
       await this.transactionModel.create(
         [
           {
@@ -147,28 +268,25 @@ export class AuctionProcessingService {
         ],
         { session },
       );
-    }
-    await this.walletModel.updateOne(
-      { userId: auction.sellerId },
-      {
-        $inc: {
-          balance: topBids.reduce((acc, bid) => acc + bid.amount, 0),
-        },
-      },
-      { session },
-    );
-    round.status = AuctionStatus.ENDED;
-    await auction.save({ session });
 
-    // End auction if this is the last round
-    const isLastRound = round === auction.rounds[auction.rounds.length - 1];
-    if (!isLastRound) {
-      return;
+      totalTransferAmount += bid.amount;
     }
 
-    auction.status = AuctionStatus.ENDED;
-    await auction.save({ session });
+    // Credit seller's wallet
+    if (totalTransferAmount > 0) {
+      await this.walletModel.updateOne(
+        { userId: auction.sellerId },
+        { $inc: { balance: totalTransferAmount } },
+        { session },
+      );
+    }
+  }
 
+  private async _processLosers(
+    auction: AuctionDocument,
+    session: ClientSession,
+  ): Promise<void> {
+    // Mark remaining active bids as lost
     await this.bidModel.updateMany(
       { auctionId: auction._id, status: BidStatus.ACTIVE },
       {
@@ -179,17 +297,24 @@ export class AuctionProcessingService {
       },
       { session },
     );
-    const bids = await this.bidModel
+
+    // Unlock funds for losers
+    const losingBids = await this.bidModel
       .find({ auctionId: auction._id, status: BidStatus.LOST })
       .session(session)
       .exec();
-    for (const bid of bids) {
+
+    for (const bid of losingBids) {
       await this.walletModel.updateOne(
         { userId: bid.userId },
         { $inc: { lockedBalance: -bid.amount } },
         { session },
       );
     }
+
+    this.logger.log(
+      `Unlocked funds for ${losingBids.length} losing bids in auction ${auction._id}`,
+    );
   }
 
   private async _getEntities(

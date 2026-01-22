@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import configuration from '../config';
+import { DistributedLockService } from './distributed-lock.service';
 
 @Module({
   imports: [
@@ -20,5 +21,7 @@ import configuration from '../config';
       },
     }),
   ],
+  providers: [DistributedLockService],
+  exports: [DistributedLockService],
 })
 export class RedisModule {}

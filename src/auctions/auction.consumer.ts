@@ -229,55 +229,68 @@ export class AuctionProcessingService {
     session: ClientSession,
   ): Promise<void> {
     const winningCount = Math.min(items.length, topBids.length);
+    if (winningCount === 0) return;
+
+    const now = new Date();
     let totalTransferAmount = 0;
+
+    // Prepare bulk operations
+    const itemBulkOps: any[] = [];
+    const walletBulkOps: any[] = [];
+    const transactionDocs: any[] = [];
 
     for (let i = 0; i < winningCount; i++) {
       const item = items[i];
       const bid = topBids[i];
 
       // Transfer item ownership
-      item.ownerId = bid.userId;
-      item.updatedAt = new Date();
-      await item.save({ session });
+      itemBulkOps.push({
+        updateOne: {
+          filter: { _id: item._id },
+          update: { $set: { ownerId: bid.userId, updatedAt: now } },
+        },
+      });
 
       // Deduct from winner's wallet
-      await this.walletModel.updateOne(
-        { userId: bid.userId },
-        {
-          $inc: {
-            balance: -bid.amount,
-            lockedBalance: -bid.amount,
-          },
+      walletBulkOps.push({
+        updateOne: {
+          filter: { userId: bid.userId },
+          update: { $inc: { balance: -bid.amount, lockedBalance: -bid.amount } },
         },
-        { session },
-      );
+      });
 
-      // Create transaction record
-      await this.transactionModel.create(
-        [
-          {
-            fromWalletId: bid.userId,
-            toWalletId: auction.sellerWalletId,
-            amount: bid.amount,
-            type: TransactionType.TRANSFER,
-            relatedEntityId: auction._id,
-            relatedEntityType: RelatedEntityType.AUCTION,
-            description: 'Auction win transfer',
-          },
-        ],
-        { session },
-      );
+      // Prepare transaction record
+      transactionDocs.push({
+        fromWalletId: bid.userId,
+        toWalletId: auction.sellerWalletId,
+        amount: bid.amount,
+        type: TransactionType.TRANSFER,
+        relatedEntityId: auction._id,
+        relatedEntityType: RelatedEntityType.AUCTION,
+        description: 'Auction win transfer',
+      });
 
       totalTransferAmount += bid.amount;
     }
 
-    // Credit seller's wallet
-    if (totalTransferAmount > 0) {
-      await this.walletModel.updateOne(
-        { userId: auction.sellerId },
-        { $inc: { balance: totalTransferAmount } },
-        { session },
-      );
+    // Execute bulk operations
+    if (itemBulkOps.length > 0) {
+      await this.itemModel.bulkWrite(itemBulkOps, { session });
+    }
+
+    if (walletBulkOps.length > 0) {
+      // Add seller credit to wallet bulk ops
+      walletBulkOps.push({
+        updateOne: {
+          filter: { userId: auction.sellerId },
+          update: { $inc: { balance: totalTransferAmount } },
+        },
+      });
+      await this.walletModel.bulkWrite(walletBulkOps, { session });
+    }
+
+    if (transactionDocs.length > 0) {
+      await this.transactionModel.insertMany(transactionDocs, { session });
     }
   }
 
@@ -285,6 +298,14 @@ export class AuctionProcessingService {
     auction: AuctionDocument,
     session: ClientSession,
   ): Promise<void> {
+    // Get losing bids before updating status
+    const losingBids = await this.bidModel
+      .find({ auctionId: auction._id, status: BidStatus.ACTIVE })
+      .session(session)
+      .exec();
+
+    if (losingBids.length === 0) return;
+
     // Mark remaining active bids as lost
     await this.bidModel.updateMany(
       { auctionId: auction._id, status: BidStatus.ACTIVE },
@@ -297,19 +318,15 @@ export class AuctionProcessingService {
       { session },
     );
 
-    // Unlock funds for losers
-    const losingBids = await this.bidModel
-      .find({ auctionId: auction._id, status: BidStatus.LOST })
-      .session(session)
-      .exec();
+    // Unlock funds for losers using bulkWrite
+    const walletBulkOps = losingBids.map((bid) => ({
+      updateOne: {
+        filter: { userId: bid.userId },
+        update: { $inc: { lockedBalance: -bid.amount } },
+      },
+    }));
 
-    for (const bid of losingBids) {
-      await this.walletModel.updateOne(
-        { userId: bid.userId },
-        { $inc: { lockedBalance: -bid.amount } },
-        { session },
-      );
-    }
+    await this.walletModel.bulkWrite(walletBulkOps, { session });
 
     this.logger.log(
       `Unlocked funds for ${losingBids.length} losing bids in auction ${auction._id}`,

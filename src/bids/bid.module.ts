@@ -7,7 +7,6 @@ import { Transaction, TransactionSchema } from '../models/transaction.schema';
 import { BidPlacementService } from './bid-placement.service';
 import { BidQueryService } from './bid-query.service';
 import { AuthModule } from '../auth/auth.module';
-import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -18,7 +17,6 @@ import { RedisModule } from '../redis/redis.module';
       { name: Transaction.name, schema: TransactionSchema },
     ]),
     AuthModule,
-    RedisModule,
   ],
   providers: [BidPlacementService, BidQueryService],
   exports: [BidPlacementService, BidQueryService],

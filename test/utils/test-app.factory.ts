@@ -15,6 +15,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { AuctionModule } from 'src/auctions/auction.module';
 import { BidModule } from 'src/bids/bid.module';
 import { UserModule } from 'src/users/user.module';
+import { RedisModule } from 'src/redis/redis.module';
 
 import { AuthController } from 'src/auth/auth.controller';
 import { UserController } from 'src/users/user.controller';
@@ -23,8 +24,6 @@ import { BidController } from 'src/bids/bid.controller';
 import { HealthcheckController } from 'src/utils/healthcheck.controller';
 
 import { AuctionProcessingService } from 'src/auctions/auction.consumer';
-import { DistributedLockService } from 'src/redis/distributed-lock.service';
-import { MockDistributedLockService } from 'src/redis/distributed-lock.service.mock';
 
 import {
   User,
@@ -66,6 +65,7 @@ export async function createTestWebApp(): Promise<TestAppContext> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [
       MongooseModule.forRoot(config.mongodbUrl),
+      RedisModule.forTest(),
       CacheModule.register({
         isGlobal: true,
         ttl: 0, // Disable caching for tests
@@ -87,10 +87,7 @@ export async function createTestWebApp(): Promise<TestAppContext> {
       BidController,
       HealthcheckController,
     ],
-  })
-    .overrideProvider(DistributedLockService)
-    .useClass(MockDistributedLockService)
-    .compile();
+  }).compile();
 
   const app = moduleFixture.createNestApplication();
 
@@ -138,6 +135,7 @@ export async function createTestRunnerApp(): Promise<TestRunnerContext> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [
       MongooseModule.forRoot(config.mongodbUrl),
+      RedisModule.forTest(),
       CacheModule.register({
         isGlobal: true,
         ttl: 0,
@@ -153,13 +151,7 @@ export async function createTestRunnerApp(): Promise<TestRunnerContext> {
       UserModule,
     ],
     controllers: [HealthcheckController],
-    providers: [
-      AuctionProcessingService,
-      {
-        provide: DistributedLockService,
-        useClass: MockDistributedLockService,
-      },
-    ],
+    providers: [AuctionProcessingService],
   }).compile();
 
   const app = moduleFixture.createNestApplication();
@@ -212,6 +204,7 @@ export async function createFullTestApp(): Promise<TestRunnerContext> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [
       MongooseModule.forRoot(config.mongodbUrl),
+      RedisModule.forTest(),
       RabbitMQModule.forRoot(config.rabbitmq),
       CacheModule.register({
         isGlobal: true,
@@ -234,13 +227,7 @@ export async function createFullTestApp(): Promise<TestRunnerContext> {
       BidController,
       HealthcheckController,
     ],
-    providers: [
-      AuctionProcessingService,
-      {
-        provide: DistributedLockService,
-        useClass: MockDistributedLockService,
-      },
-    ],
+    providers: [AuctionProcessingService],
   }).compile();
 
   const app = moduleFixture.createNestApplication();

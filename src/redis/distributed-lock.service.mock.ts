@@ -40,7 +40,26 @@ export class MockDistributedLockService {
     return true;
   }
 
-  async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  async acquireLockWithPubSub(
+    key: string,
+    options: {
+      timeoutMs?: number;
+      maxAttempts?: number;
+    } = {},
+  ): Promise<string> {
+    // Mock всегда успешно получает блокировку
+    this.metrics.acquired++;
+    return `mock-token-${Date.now()}`;
+  }
+
+  async withLock<T>(
+    key: string,
+    fn: () => Promise<T>,
+    options?: {
+      timeoutMs?: number;
+      maxAttempts?: number;
+    },
+  ): Promise<T> {
     const lockKey = `lock:${key}`;
 
     // Wait for existing lock to be released

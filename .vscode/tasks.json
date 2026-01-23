@@ -6,7 +6,7 @@
 			"script": "format",
 			"problemMatcher": [],
 			"label": "npm: format",
-			"detail": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\""
+			"detail": "npm run format"
 		},
 		{
 			"type": "npm",

@@ -30,9 +30,7 @@ export class MockDistributedLockService {
     };
   }
 
-  async acquireLock(
-    key: string,
-  ): Promise<string | null> {
+  async acquireLock(key: string): Promise<string | null> {
     this.metrics.acquired++;
     return `mock-token-${Date.now()}`;
   }
@@ -42,12 +40,9 @@ export class MockDistributedLockService {
     return true;
   }
 
-  async withLock<T>(
-    key: string,
-    fn: () => Promise<T>,
-  ): Promise<T> {
+  async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const lockKey = `lock:${key}`;
-    
+
     // Wait for existing lock to be released
     while (this.locks.has(lockKey)) {
       await this.locks.get(lockKey);

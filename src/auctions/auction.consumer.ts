@@ -1,4 +1,8 @@
-import { AmqpConnection, Nack, RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import {
+  AmqpConnection,
+  Nack,
+  RabbitSubscribe,
+} from '@golevelup/nestjs-rabbitmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { JobMessage, ProcessingJobMessage } from './dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
@@ -126,7 +130,11 @@ export class AuctionProcessingService {
       }
 
       // Find rounds that need processing
-      for (let roundIndex = 0; roundIndex < auction.rounds.length; roundIndex++) {
+      for (
+        let roundIndex = 0;
+        roundIndex < auction.rounds.length;
+        roundIndex++
+      ) {
         const round = auction.rounds[roundIndex];
         if (round.status !== AuctionStatus.ACTIVE) continue;
         if (round.endTime >= now) continue;
@@ -220,23 +228,49 @@ export class AuctionProcessingService {
       // Execute the appropriate stage
       switch (stage) {
         case AuctionProcessingStage.DETERMINE_WINNERS:
-          await this._stageDetermineWinners(auction, round, msg.roundIndex, session);
+          await this._stageDetermineWinners(
+            auction,
+            round,
+            msg.roundIndex,
+            session,
+          );
           break;
 
         case AuctionProcessingStage.TRANSFER_ITEMS:
-          await this._stageTransferItems(auction, round, msg.roundIndex, session);
+          await this._stageTransferItems(
+            auction,
+            round,
+            msg.roundIndex,
+            session,
+          );
           break;
 
         case AuctionProcessingStage.PROCESS_PAYMENTS:
-          await this._stageProcessPayments(auction, round, msg.roundIndex, session);
+          await this._stageProcessPayments(
+            auction,
+            round,
+            msg.roundIndex,
+            session,
+          );
           break;
 
         case AuctionProcessingStage.REFUND_LOSERS:
-          await this._stageRefundLosers(auction, msg.roundIndex, isLastRound, session);
+          await this._stageRefundLosers(
+            auction,
+            msg.roundIndex,
+            isLastRound,
+            session,
+          );
           break;
 
         case AuctionProcessingStage.FINALIZE:
-          await this._stageFinalize(auction, round, msg.roundIndex, isLastRound, session);
+          await this._stageFinalize(
+            auction,
+            round,
+            msg.roundIndex,
+            isLastRound,
+            session,
+          );
           break;
 
         default:
@@ -275,7 +309,9 @@ export class AuctionProcessingService {
     roundIndex: number,
     session: ClientSession,
   ): Promise<void> {
-    this.logger.log(`Stage DETERMINE_WINNERS for auction ${auction._id}, round ${roundIndex}`);
+    this.logger.log(
+      `Stage DETERMINE_WINNERS for auction ${auction._id}, round ${roundIndex}`,
+    );
 
     await this._updateRoundProcessingStatus(
       auction,
@@ -310,7 +346,9 @@ export class AuctionProcessingService {
     roundIndex: number,
     session: ClientSession,
   ): Promise<void> {
-    this.logger.log(`Stage TRANSFER_ITEMS for auction ${auction._id}, round ${roundIndex}`);
+    this.logger.log(
+      `Stage TRANSFER_ITEMS for auction ${auction._id}, round ${roundIndex}`,
+    );
 
     await this._updateRoundProcessingStatus(
       auction,
@@ -319,7 +357,11 @@ export class AuctionProcessingService {
       session,
     );
 
-    const { items, topBids } = await this._getWinningEntities(auction, round, session);
+    const { items, topBids } = await this._getWinningEntities(
+      auction,
+      round,
+      session,
+    );
     const winningCount = Math.min(items.length, topBids.length);
 
     if (winningCount === 0) return;
@@ -343,7 +385,9 @@ export class AuctionProcessingService {
       await this.itemModel.bulkWrite(itemBulkOps, { session });
     }
 
-    this.logger.log(`Transferred ${winningCount} items in auction ${auction._id}`);
+    this.logger.log(
+      `Transferred ${winningCount} items in auction ${auction._id}`,
+    );
   }
 
   private async _stageProcessPayments(
@@ -352,9 +396,15 @@ export class AuctionProcessingService {
     roundIndex: number,
     session: ClientSession,
   ): Promise<void> {
-    this.logger.log(`Stage PROCESS_PAYMENTS for auction ${auction._id}, round ${roundIndex}`);
+    this.logger.log(
+      `Stage PROCESS_PAYMENTS for auction ${auction._id}, round ${roundIndex}`,
+    );
 
-    const { items, topBids } = await this._getWinningEntities(auction, round, session);
+    const { items, topBids } = await this._getWinningEntities(
+      auction,
+      round,
+      session,
+    );
     const winningCount = Math.min(items.length, topBids.length);
 
     if (winningCount === 0) return;
@@ -369,7 +419,9 @@ export class AuctionProcessingService {
       walletBulkOps.push({
         updateOne: {
           filter: { userId: bid.userId },
-          update: { $inc: { balance: -bid.amount, lockedBalance: -bid.amount } },
+          update: {
+            $inc: { balance: -bid.amount, lockedBalance: -bid.amount },
+          },
         },
       });
 
@@ -411,7 +463,9 @@ export class AuctionProcessingService {
     isLastRound: boolean,
     session: ClientSession,
   ): Promise<void> {
-    this.logger.log(`Stage REFUND_LOSERS for auction ${auction._id}, round ${roundIndex}`);
+    this.logger.log(
+      `Stage REFUND_LOSERS for auction ${auction._id}, round ${roundIndex}`,
+    );
 
     if (!isLastRound) {
       this.logger.log(`Skipping REFUND_LOSERS - not last round`);
@@ -464,7 +518,9 @@ export class AuctionProcessingService {
     isLastRound: boolean,
     session: ClientSession,
   ): Promise<void> {
-    this.logger.log(`Stage FINALIZE for auction ${auction._id}, round ${roundIndex}`);
+    this.logger.log(
+      `Stage FINALIZE for auction ${auction._id}, round ${roundIndex}`,
+    );
 
     await this._updateRoundProcessingStatus(
       auction,
@@ -495,58 +551,91 @@ export class AuctionProcessingService {
     const auctionLockKey = `auction:${msg.auctionId}`;
 
     try {
-      return await this.distributedLockService.withLock(auctionLockKey, async () => {
-        const session: ClientSession = await this.connection.startSession();
-        session.startTransaction();
+      return await this.distributedLockService.withLock(
+        auctionLockKey,
+        async () => {
+          const session: ClientSession = await this.connection.startSession();
+          session.startTransaction();
 
-        try {
-          const now = new Date();
-          const auction = await this.auctionModel
-            .findById(msg.auctionId)
-            .session(session)
-            .exec();
+          try {
+            const now = new Date();
+            const auction = await this.auctionModel
+              .findById(msg.auctionId)
+              .session(session)
+              .exec();
 
-          if (!auction) {
-            await session.abortTransaction();
-            return new Nack(false);
-          }
-
-          if (auction.status !== AuctionStatus.ACTIVE) {
-            await session.abortTransaction();
-            return new Nack(false);
-          }
-
-          // Process all rounds that need processing
-          for (let roundIndex = 0; roundIndex < auction.rounds.length; roundIndex++) {
-            const round = auction.rounds[roundIndex];
-            if (round.status !== AuctionStatus.ACTIVE) continue;
-            if (round.endTime >= now) continue;
-
-            const isLastRound = roundIndex === auction.rounds.length - 1;
-
-            // Run all stages in sequence
-            await this._stageDetermineWinners(auction, round, roundIndex, session);
-            await this._stageTransferItems(auction, round, roundIndex, session);
-            await this._stageProcessPayments(auction, round, roundIndex, session);
-            if (isLastRound) {
-              await this._stageRefundLosers(auction, roundIndex, isLastRound, session);
+            if (!auction) {
+              await session.abortTransaction();
+              return new Nack(false);
             }
-            await this._stageFinalize(auction, round, roundIndex, isLastRound, session);
-          }
 
-          await session.commitTransaction();
-          return null;
-        } catch (error) {
-          this.logger.error(error);
-          await session.abortTransaction();
-          if (error instanceof DataIntegrityError) {
-            return new Nack(false);
+            if (auction.status !== AuctionStatus.ACTIVE) {
+              await session.abortTransaction();
+              return new Nack(false);
+            }
+
+            // Process all rounds that need processing
+            for (
+              let roundIndex = 0;
+              roundIndex < auction.rounds.length;
+              roundIndex++
+            ) {
+              const round = auction.rounds[roundIndex];
+              if (round.status !== AuctionStatus.ACTIVE) continue;
+              if (round.endTime >= now) continue;
+
+              const isLastRound = roundIndex === auction.rounds.length - 1;
+
+              // Run all stages in sequence
+              await this._stageDetermineWinners(
+                auction,
+                round,
+                roundIndex,
+                session,
+              );
+              await this._stageTransferItems(
+                auction,
+                round,
+                roundIndex,
+                session,
+              );
+              await this._stageProcessPayments(
+                auction,
+                round,
+                roundIndex,
+                session,
+              );
+              if (isLastRound) {
+                await this._stageRefundLosers(
+                  auction,
+                  roundIndex,
+                  isLastRound,
+                  session,
+                );
+              }
+              await this._stageFinalize(
+                auction,
+                round,
+                roundIndex,
+                isLastRound,
+                session,
+              );
+            }
+
+            await session.commitTransaction();
+            return null;
+          } catch (error) {
+            this.logger.error(error);
+            await session.abortTransaction();
+            if (error instanceof DataIntegrityError) {
+              return new Nack(false);
+            }
+            return new Nack(true);
+          } finally {
+            await session.endSession();
           }
-          return new Nack(true);
-        } finally {
-          await session.endSession();
-        }
-      });
+        },
+      );
     } catch (error) {
       this.logger.error(error);
       return new Nack(true);
@@ -591,7 +680,11 @@ export class AuctionProcessingService {
       publishedAt: new Date(),
     };
 
-    await this.amqpConnection.publish('delayed.ex', 'auction.processing', message);
+    await this.amqpConnection.publish(
+      'delayed.ex',
+      'auction.processing',
+      message,
+    );
 
     this.logger.log(
       `Published next stage ${stage} for auction ${auctionId}, round ${roundIndex}`,

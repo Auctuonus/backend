@@ -41,9 +41,8 @@ export class BidPlacementService {
     // Acquire distributed lock for auction to prevent race conditions
     const auctionLockKey = `auction:${placeBidDto.auctionId}`;
 
-    return this.distributedLockService.withLock(
-      auctionLockKey,
-      () => this._placeBidWithTransaction(placeBidDto),
+    return this.distributedLockService.withLock(auctionLockKey, () =>
+      this._placeBidWithTransaction(placeBidDto),
     );
   }
 

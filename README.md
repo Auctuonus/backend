@@ -67,13 +67,52 @@ Auctionus - это система для проведения многораун
   - e2e для проверки совместимости всех компонентов системы
   - Нагрузочные тесты для проверки конкурентности.
 
-- Как запустить:
+- Как запустить весь проект:
+
+1. Перейти в папку backend:
 ```bash
 cd backend
-cp {path_to_env} docker.env
-docker compose --profile server up -d --build
-# шо то для фронта
 ```
+
+2. Запустить Docker Desktop, затем поднять backend:
+```bash
+docker compose --profile server up -d --build
+```
+
+3. Перейти в папку frontend и запустить:
+```bash
+cd ../frontend
+npm run build
+npm run dev
+```
+
+4. В **отдельном терминале** запустить cloudflare туннель:
+```bash
+cloudflared tunnel --url http://localhost:5173
+```
+
+5. Взять URL из вывода команды выше (например `https://chambers-editorials-potato-font.trycloudflare.com`) и в **другом терминале** отправить сообщение боту (предварительно подготовив токен своего бота из Telegram):
+```bash
+curl -X POST "https://api.telegram.org/bot<token бота>/sendMessage" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chat_id": "<id из @Getmyid_bot>",
+    "text": "Open app",
+    "reply_markup": {
+      "inline_keyboard": [[{ "text": "Open", "web_app": { "url": "<url из cloudflare туннеля, с https>" } }]]
+    }
+  }'
+```
+6. Поменять значения в frontend\vite.config.ts на строках 8 и 11, без https:// на этот раз. Сохранить файл
+
+7. Открыть сообщение "Open App" от своего бота в Telegram.
+
+8. В VSCode открыть репозиторий Backend, нажать `Ctrl+Shift+P` → "Tasks: Run Task" и по очереди выполнить:
+   - **Scripts: Create user + wallet** (нужен id чата Telegram, можно взять из @Getmyid_bot)
+   - **Scripts: Top up wallet (interactive)** (аналогично)
+   - **Scripts: Stress test auction (2 min + users + bids)**
+
+9. Открыть TG Mini App и делать ставки!
 
 - VSCode Tasks:
   - Scripts: Create user + wallet: Интерактивное создание пользователя

@@ -25,13 +25,14 @@ const BidModel = model('Bid', BidSchema);
 
 // Configuration for the stress test
 const CONFIG = {
-  auctionDurationMinutes: 2,
+  roundDurationMinutes: 2,
+  roundsCount: 2,
   usersCount: 10,
   bidsPerUser: 5,
   initialBalance: 100_000,
   minBid: 100,
   minBidDifference: 10,
-  itemsCount: 3,
+  itemsPerRound: 3,
   antisniping: 30, // 30 seconds for quick test
 };
 
@@ -112,10 +113,11 @@ async function main() {
 
   console.log('🚀 Starting Stress Test Auction Script');
   console.log('=====================================');
-  console.log(`  Duration: ${CONFIG.auctionDurationMinutes} minutes`);
+  console.log(`  Rounds: ${CONFIG.roundsCount}`);
+  console.log(`  Duration per round: ${CONFIG.roundDurationMinutes} minutes`);
   console.log(`  Users: ${CONFIG.usersCount}`);
   console.log(`  Bids per user: ${CONFIG.bidsPerUser}`);
-  console.log(`  Items: ${CONFIG.itemsCount}`);
+  console.log(`  Items per round: ${CONFIG.itemsPerRound}`);
   console.log('=====================================\n');
 
   try {
@@ -139,26 +141,36 @@ async function main() {
     console.log('\n📌 Creating bidders...');
     const bidders = await createUsers(CONFIG.usersCount, CONFIG.initialBalance);
 
-    // Create items
+    // Create items for all rounds
     console.log('\n📌 Creating items...');
-    const itemIds = await createItems(CONFIG.itemsCount, seller._id);
+    const allItemIds: Types.ObjectId[][] = [];
+    for (let r = 0; r < CONFIG.roundsCount; r++) {
+      console.log(`  Round ${r + 1}:`);
+      const roundItems = await createItems(CONFIG.itemsPerRound, seller._id);
+      allItemIds.push(roundItems);
+    }
 
-    // Create auction with short duration
+    // Create auction with multiple rounds
     console.log('\n📌 Creating auction...');
     const now = new Date();
-    const startTime = new Date(now.getTime() + 5 * 1000); // Start in 5 seconds
-    const endTime = new Date(
-      startTime.getTime() + CONFIG.auctionDurationMinutes * 60 * 1000,
-    );
+    const rounds: AuctionRound[] = [];
+    let currentStartTime = new Date(now.getTime() + 5 * 1000); // First round starts in 5 seconds
 
-    const rounds: AuctionRound[] = [
-      {
-        startTime,
-        endTime,
-        itemIds,
+    for (let r = 0; r < CONFIG.roundsCount; r++) {
+      const roundEndTime = new Date(
+        currentStartTime.getTime() + CONFIG.roundDurationMinutes * 60 * 1000,
+      );
+      rounds.push({
+        startTime: currentStartTime,
+        endTime: roundEndTime,
+        itemIds: allItemIds[r],
         status: AuctionStatus.ACTIVE,
-      },
-    ];
+      });
+      console.log(`  🔄 Round ${r + 1}: ${currentStartTime.toISOString()} - ${roundEndTime.toISOString()}`);
+      currentStartTime = roundEndTime; // Next round starts when previous ends
+    }
+
+    const auctionEndTime = rounds[rounds.length - 1].endTime;
 
     const auction = await AuctionModel.create({
       name: `Stress Test Auction ${Date.now()}`,
@@ -174,8 +186,8 @@ async function main() {
     });
 
     console.log(`  🎯 Auction ID: ${String(auction._id)}`);
-    console.log(`  📅 Start: ${startTime.toISOString()}`);
-    console.log(`  📅 End: ${endTime.toISOString()}`);
+    console.log(`  📅 Start: ${rounds[0].startTime.toISOString()}`);
+    console.log(`  📅 End: ${auctionEndTime.toISOString()}`);
 
     // Create bids
     console.log('\n📌 Creating bids...');
@@ -203,7 +215,7 @@ async function main() {
       await rabbitChannel.assertQueue('jobs.q', { durable: true });
       await rabbitChannel.bindQueue('jobs.q', 'delayed.ex', 'jobs');
 
-      const delay = Math.max(0, endTime.getTime() - Date.now());
+      const delay = Math.max(0, auctionEndTime.getTime() - Date.now());
 
       const jobMessage = {
         id: randomUUID(),
@@ -238,9 +250,11 @@ async function main() {
     console.log(`  Seller ID: ${String(seller._id)}`);
     console.log(`  Users created: ${CONFIG.usersCount}`);
     console.log(`  Total bids: ${CONFIG.usersCount * CONFIG.bidsPerUser}`);
-    console.log(`  Items: ${CONFIG.itemsCount}`);
-    console.log(`  Start: ${startTime.toLocaleString()}`);
-    console.log(`  End: ${endTime.toLocaleString()}`);
+    console.log(`  Rounds: ${CONFIG.roundsCount}`);
+    console.log(`  Items per round: ${CONFIG.itemsPerRound}`);
+    console.log(`  Start: ${rounds[0].startTime.toLocaleString()}`);
+    console.log(`  End: ${auctionEndTime.toLocaleString()}`);
+    console.log(`  Total duration: ${CONFIG.roundsCount * CONFIG.roundDurationMinutes} minutes`);
     console.log('=====================================');
     console.log('\n🎉 Stress test auction created successfully!');
   } catch (e) {

@@ -4,3 +4,4 @@ export * from './transaction.schema';
 export * from './item.schema';
 export * from './bid.schema';
 export * from './auction.schema';
+export { AuctionProcessingStage } from './auction.schema';

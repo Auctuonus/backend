@@ -8,21 +8,21 @@ export enum AuctionStatus {
 }
 
 export enum RoundProcessingStatus {
-  PENDING = 'pending',           // Раунд ещё не начался
-  ACTIVE = 'active',             // Раунд активен, принимаются ставки
-  PROCESSING_WINNERS = 'processing_winners',     // Определяем победителей
+  PENDING = 'pending', // Раунд ещё не начался
+  ACTIVE = 'active', // Раунд активен, принимаются ставки
+  PROCESSING_WINNERS = 'processing_winners', // Определяем победителей
   PROCESSING_TRANSFERS = 'processing_transfers', // Переводим средства
-  PROCESSING_LOSERS = 'processing_losers',       // Разблокируем средства проигравших
-  COMPLETED = 'completed',       // Обработка завершена
-  FAILED = 'failed',             // Ошибка обработки
+  PROCESSING_LOSERS = 'processing_losers', // Разблокируем средства проигравших
+  COMPLETED = 'completed', // Обработка завершена
+  FAILED = 'failed', // Ошибка обработки
 }
 
 export enum AuctionProcessingStage {
-  DETERMINE_WINNERS = 'determine_winners',   // Stage 1: Определение победителей
-  TRANSFER_ITEMS = 'transfer_items',         // Stage 2: Передача ownership предметов
-  PROCESS_PAYMENTS = 'process_payments',     // Stage 3: Финансовые операции
-  REFUND_LOSERS = 'refund_losers',           // Stage 4: Разблокировка средств проигравших
-  FINALIZE = 'finalize',                     // Stage 5: Финализация статусов
+  DETERMINE_WINNERS = 'determine_winners', // Stage 1: Определение победителей
+  TRANSFER_ITEMS = 'transfer_items', // Stage 2: Передача ownership предметов
+  PROCESS_PAYMENTS = 'process_payments', // Stage 3: Финансовые операции
+  REFUND_LOSERS = 'refund_losers', // Stage 4: Разблокировка средств проигравших
+  FINALIZE = 'finalize', // Stage 5: Финализация статусов
 }
 
 @Schema({ _id: false })

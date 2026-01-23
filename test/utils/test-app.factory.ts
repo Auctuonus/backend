@@ -87,7 +87,8 @@ export async function createTestWebApp(): Promise<TestAppContext> {
       BidController,
       HealthcheckController,
     ],
-  }).overrideProvider(DistributedLockService)
+  })
+    .overrideProvider(DistributedLockService)
     .useClass(MockDistributedLockService)
     .compile();
 

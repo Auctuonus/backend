@@ -60,7 +60,10 @@ describe('Concurrent Bids (e2e)', () => {
         return request(app.getHttpServer())
           .post('/bids/set_bid')
           .set('Authorization', `Bearer ${tokens.accessToken}`)
-          .send({ auctionId: auction._id.toString(), amount: 100 + index * 10 });
+          .send({
+            auctionId: auction._id.toString(),
+            amount: 100 + index * 10,
+          });
       });
 
       const responses = await Promise.all(bidPromises);
@@ -158,7 +161,7 @@ describe('Concurrent Bids (e2e)', () => {
 
       // One should succeed, one should fail (not enough balance)
       const statuses = [response1.status, response2.status].sort();
-      
+
       // With locks, we expect one success and one failure
       // The exact outcome depends on which lock is acquired first
       const successCount = statuses.filter((s) => s === 201).length;
@@ -166,7 +169,7 @@ describe('Concurrent Bids (e2e)', () => {
 
       // At least one should succeed
       expect(successCount).toBeGreaterThanOrEqual(1);
-      
+
       // Total locked balance should not exceed available balance
       const wallet = await dbHelpers.getWalletByUserId(bidder._id);
       expect(wallet.lockedBalance).toBeLessThanOrEqual(wallet.balance);
@@ -189,7 +192,7 @@ describe('Concurrent Bids (e2e)', () => {
 
       // Each user places 3 bids sequentially (to avoid self-contention)
       const allPromises: Promise<any>[] = [];
-      
+
       for (const u of users) {
         const tokens = generateTestTokens(jwtService, {
           userId: u.user._id.toString(),
@@ -213,7 +216,7 @@ describe('Concurrent Bids (e2e)', () => {
 
       // Verify data integrity
       const bids = await dbHelpers.getBidsByAuction(auction._id);
-      
+
       // All 10 users should have exactly 1 bid each (final amount 200)
       expect(bids).toHaveLength(10);
 
@@ -229,7 +232,7 @@ describe('Concurrent Bids (e2e)', () => {
         const userBid = bids.find(
           (b) => b.userId.toString() === u.user._id.toString(),
         );
-        
+
         expect(userBid).toBeDefined();
         expect(wallet.lockedBalance).toBe(200); // Final bid amount
         expect(wallet.balance).toBe(100000); // Original balance unchanged

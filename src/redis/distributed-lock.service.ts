@@ -10,7 +10,6 @@ export interface LockMetrics {
   avgWaitTimeMs: number;
 }
 
-
 @Injectable()
 export class DistributedLockService {
   private readonly logger = new Logger(DistributedLockService.name);
@@ -38,10 +37,7 @@ export class DistributedLockService {
     };
   }
 
-  async acquireLock(
-    key: string
-  ): Promise<string | null> {
-
+  async acquireLock(key: string): Promise<string | null> {
     const lockKey = `lock:${key}`;
     const lockToken = `${Date.now()}-${Math.random().toString(36).substring(2)}-${process.pid}`;
     const startTime = Date.now();
@@ -51,20 +47,18 @@ export class DistributedLockService {
       if (!existingLock) {
         await this.cacheManager.set(lockKey, lockToken);
         const verifyLock = await this.cacheManager.get<string>(lockKey);
-        
+
         if (verifyLock === lockToken) {
           const waitTime = Date.now() - startTime;
           this.metrics.acquired++;
           this.metrics.totalWaitTimeMs += waitTime;
-          this.metrics.avgWaitTimeMs = this.metrics.totalWaitTimeMs / this.metrics.acquired;
-          
-          this.logger.debug(
-            `Lock acquired: ${lockKey} (wait ${waitTime}ms)`,
-          );
+          this.metrics.avgWaitTimeMs =
+            this.metrics.totalWaitTimeMs / this.metrics.acquired;
+
+          this.logger.debug(`Lock acquired: ${lockKey} (wait ${waitTime}ms)`);
           return lockToken;
         }
       }
-
     } catch (error) {
       this.logger.error(`Lock acquire error for ${lockKey}:`, error);
     }
@@ -102,10 +96,7 @@ export class DistributedLockService {
     }
   }
 
-  async withLock<T>(
-    key: string,
-    fn: () => Promise<T>
-  ): Promise<T> {
+  async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const token = await this.acquireLock(key);
 
     if (!token) {
@@ -141,5 +132,4 @@ export class DistributedLockService {
     const token = await this.cacheManager.get<string>(lockKey);
     return !!token;
   }
-
 }

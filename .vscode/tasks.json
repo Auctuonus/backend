@@ -16,7 +16,7 @@
 			"detail": "nest build"
 		},
 		{
-			"label": "Scripts: Create user + wallet (interactive)",
+			"label": "Scripts: Create user + wallet",
 			"type": "shell",
 			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-user.ts",
 			"presentation": {
@@ -27,7 +27,7 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Scripts: Create auction + items (interactive)",
+			"label": "Scripts: Create auction + items",
 			"type": "shell",
 			"command": "docker-compose run --rm scripts-runner ts-node scripts/create-auction.ts",
 			"presentation": {

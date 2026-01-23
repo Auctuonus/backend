@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ModelsModule } from './models/models.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -13,6 +14,7 @@ import { AuctionController } from './auctions/auction.controller';
 import { BidController } from './bids/bid.controller';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { AuctionProcessingService } from './auctions/auction.consumer';
+import { AuctionSchedulerService } from './auctions/auction.scheduler';
 import { HealthcheckController } from './utils/healthcheck.controller';
 
 @Module({
@@ -40,6 +42,7 @@ export class AppModule {}
     MongooseModule.forRoot(configuration().mongodbUrl),
     RedisModule.forRoot(),
     RabbitMQModule.forRoot(configuration().rabbitmq),
+    ScheduleModule.forRoot(),
     ModelsModule,
     AuthModule,
     UserModule,
@@ -47,7 +50,7 @@ export class AppModule {}
     BidModule,
   ],
   controllers: [HealthcheckController],
-  providers: [AuctionProcessingService],
+  providers: [AuctionProcessingService, AuctionSchedulerService],
   exports: [AuctionProcessingService],
 })
 export class RunnerModule {}

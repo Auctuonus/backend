@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../models/user.schema';
 import { Wallet, WalletDocument } from '../models/wallet.schema';
 
@@ -35,7 +35,7 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const wallet = await this.walletModel.findOne({ userId }).lean().exec();
+    const wallet = await this.walletModel.findOne({ userId: new Types.ObjectId(userId) }).lean().exec();
     if (!wallet) {
       throw new NotFoundException('Wallet not found');
     }

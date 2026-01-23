@@ -23,7 +23,7 @@ import {
 } from 'src/models';
 import { ClientSession, Connection, Model } from 'mongoose';
 import { DistributedLockService } from '../redis/distributed-lock.service';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export class DataIntegrityError extends Error {
   constructor(message: string) {
@@ -584,7 +584,7 @@ export class AuctionProcessingService {
     stage: AuctionProcessingStage,
   ): Promise<void> {
     const message: ProcessingJobMessage = {
-      id: uuidv4(),
+      id: randomUUID(),
       auctionId,
       roundIndex,
       stage,

@@ -75,7 +75,9 @@ export class AuthService {
     }
 
     // Ensure wallet exists
-    const existingWallet = await this.walletModel.findOne({ userId: user._id }).exec();
+    const existingWallet = await this.walletModel
+      .findOne({ userId: user._id })
+      .exec();
     if (!existingWallet) {
       await this.walletModel.create({ userId: user._id });
     }

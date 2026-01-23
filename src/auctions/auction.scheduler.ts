@@ -37,7 +37,9 @@ export class AuctionSchedulerService {
       return;
     }
 
-    this.logger.log(`Found ${endedAuctions.length} auction(s) with ended rounds`);
+    this.logger.log(
+      `Found ${endedAuctions.length} auction(s) with ended rounds`,
+    );
 
     for (const auction of endedAuctions) {
       const jobMessage = {

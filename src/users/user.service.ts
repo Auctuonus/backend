@@ -35,7 +35,10 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const wallet = await this.walletModel.findOne({ userId: new Types.ObjectId(userId) }).lean().exec();
+    const wallet = await this.walletModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .lean()
+      .exec();
     if (!wallet) {
       throw new NotFoundException('Wallet not found');
     }

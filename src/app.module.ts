@@ -18,7 +18,7 @@ import { HealthcheckController } from './utils/healthcheck.controller';
 @Module({
   imports: [
     MongooseModule.forRoot(configuration().mongodbUrl),
-    RedisModule,
+    RedisModule.forRoot(),
     ModelsModule,
     AuthModule,
     UserModule,
@@ -38,7 +38,7 @@ export class AppModule {}
 @Module({
   imports: [
     MongooseModule.forRoot(configuration().mongodbUrl),
-    RedisModule,
+    RedisModule.forRoot(),
     RabbitMQModule.forRoot(configuration().rabbitmq),
     ModelsModule,
     AuthModule,
@@ -48,6 +48,6 @@ export class AppModule {}
   ],
   controllers: [HealthcheckController],
   providers: [AuctionProcessingService],
-  exports: [AuctionProcessingService, RedisModule],
+  exports: [AuctionProcessingService],
 })
 export class RunnerModule {}

@@ -36,6 +36,39 @@
 				"focus": true
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Stress test auction (2 min + users + bids)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/stress-test-auction.ts",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"focus": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Reset ALL data (interactive)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/reset-data.ts",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"focus": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Scripts: Top up wallet (interactive)",
+			"type": "shell",
+			"command": "docker-compose run --rm scripts-runner ts-node scripts/topup-wallet.ts",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"focus": true
+			},
+			"problemMatcher": []
 		}
 	]
 }

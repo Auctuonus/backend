@@ -118,7 +118,7 @@ curl -X POST "https://api.telegram.org/bot<token бота>/sendMessage" \
   - Scripts: Create user + wallet: Интерактивное создание пользователя
   - Scripts: Create auction + items: Интерактивное создание аукциона
 
-- Swagger: **localhost:3000/api**
+- Swagger: **localhost:3000/api/docs**
   - В Swagger лучше авторизовываться через пароль, положив полученный access токен в окно авторизации.
 
 - TG Bot: **link**

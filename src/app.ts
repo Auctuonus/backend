@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import injectSwagger from './utils/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {});
 
   // Enable validation
   app.useGlobalPipes(
@@ -18,6 +18,10 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+
+  // Setup Swagger documentation
   injectSwagger(app);
 
   await app.listen(process.env.PORT ?? 3000);

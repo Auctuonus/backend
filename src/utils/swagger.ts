@@ -27,7 +27,8 @@ export default function injectSwagger(app: INestApplication) {
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory, {
+  SwaggerModule.setup('api/docs', app, documentFactory, {
+    useGlobalPrefix: false,
     customSiteTitle: 'Auctionus API Docs',
     customCss: `
       .information-container { 
@@ -68,7 +69,7 @@ export default function injectSwagger(app: INestApplication) {
           exportButton.className = 'swagger-export-btn';
           exportButton.innerHTML = '📥 Export Swagger JSON';
           exportButton.onclick = function() {
-            fetch('/api-json')
+            fetch('/api/docs-json')
               .then(response => response.json())
               .then(data => {
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

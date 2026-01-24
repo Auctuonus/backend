@@ -15,8 +15,15 @@ async function bootstrap() {
     }),
   );
 
+  // Enable CORS
+  app.enableCors();
+
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+
+  // Setup Swagger
   injectSwagger(app);
 
   await app.listen(3001);
 }
-void bootstrap();
+bootstrap();
